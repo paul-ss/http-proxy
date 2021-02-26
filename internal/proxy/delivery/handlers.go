@@ -24,15 +24,4 @@ func (d *Delivery) Proxy(c *gin.Context) {
 	}
 
 
-	//if err := resp.Header.Write(c.Writer); err != nil {
-	//	log.Println("delivery, Proxy: " + err.Error())
-	//}
-
-	c.Writer.WriteHeader(resp.StatusCode)
-	c.
-
-	//defer resp.Body.Close()
-	//
-	//body, err := ioutil.ReadAll(resp.Body)
-	//c.Writer.Write(body)
 }

@@ -1,8 +1,24 @@
 package main
 
-import "github.com/paul-ss/http-proxy/internal/network"
+import (
+	"github.com/paul-ss/http-proxy/internal/network"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+)
 
 func main()  {
 	srv := network.NewServer()
-	srv.Run()
+	go srv.Run()
+
+	quit := make(chan os.Signal)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	<-quit
+	log.Println("Shutting down server...")
+
+	srv.Stop()
+
+	log.Println("Server exiting")
 }
