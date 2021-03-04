@@ -1,29 +1,28 @@
-package network
+package http
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
 	"io"
-	"net/url"
 	"strconv"
 )
 
-type Request struct {
-	Method string
-	Url *url.URL
+type Response struct {
+	Status int
+	Message string
 	Protocol string
 	Headers map[string]string
 	Body []byte
 }
 
-func NewRequest() *Request {
-	return &Request{
+func NewResponse() *Response {
+	return &Response{
 		Headers: make(map[string]string),
 	}
 }
 
-func (r *Request) Parse(reader io.Reader) error {
+func (r *Response) Parse(reader io.Reader) error {
 	bReader := bufio.NewReader(reader)
 	started := false
 	firstLineParsed := false
@@ -45,9 +44,7 @@ func (r *Request) Parse(reader io.Reader) error {
 		started = true
 
 		if !firstLineParsed {
-			if err := r.parseFirstLine(line); err != nil {
-				return err
-			}
+			r.parseFirstLine(line)
 			firstLineParsed = true
 			continue
 		}
@@ -60,25 +57,28 @@ func (r *Request) Parse(reader io.Reader) error {
 	return r.getBody(bReader)
 }
 
-func (r *Request) parseFirstLine(buf []byte) error {
+
+func (r *Response) parseFirstLine(buf []byte) error {
 	fields := bytes.Fields(buf)
-	if len(fields) != 3 {
+	if len(fields) < 2 {
 		return fmt.Errorf("can't parse first line: " + string(buf))
 	}
 
-	r.Method = string(fields[0])
-	u, err := url.Parse(string(fields[1]))
+	r.Protocol = string(fields[0])
+
+	status, err := strconv.Atoi(string(fields[1]))
 	if err != nil {
-		return fmt.Errorf("can't parse url line: " + string(buf))
+		return fmt.Errorf("can't parse status: " + string(fields[1]))
 	}
 
-	r.Url = u
-	r.Protocol = string(fields[2])
+	r.Status = status
+	r.Message = string(bytes.Join(fields[2:], []byte(" ")))
 
 	return nil
 }
 
-func (r *Request) parseHeader(buf []byte) error {
+
+func (r *Response) parseHeader(buf []byte) error {
 	idx := bytes.Index(buf, []byte(":"))
 	if idx < 0 {
 		return fmt.Errorf("can't parse header: " + string(buf))
@@ -88,7 +88,7 @@ func (r *Request) parseHeader(buf []byte) error {
 	return nil
 }
 
-func (r *Request) getBody(bRdr *bufio.Reader) error {
+func (r *Response) getBody(bRdr *bufio.Reader) error {
 	length, ok := r.Headers["Content-Length"]
 	if ok {
 		l, err := strconv.Atoi(length)
@@ -108,9 +108,9 @@ func (r *Request) getBody(bRdr *bufio.Reader) error {
 	return nil
 }
 
-func (r *Request) Bytes() []byte {
+func (r *Response) Bytes() []byte {
 	buff := bytes.Buffer{}
-	buff.WriteString(fmt.Sprintf("%s %s %s\r\n", r.Method, r.Url.String(), r.Protocol))
+	buff.WriteString(fmt.Sprintf("%s %d %s\r\n", r.Protocol, r.Status, r.Message))
 	for h, val := range r.Headers {
 		buff.WriteString(fmt.Sprintf("%s: %s \r\n", h, val))
 	}

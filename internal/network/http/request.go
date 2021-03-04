@@ -1,27 +1,29 @@
-package network
+package http
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
 	"io"
+	"net/url"
 	"strconv"
 )
 
-type Response struct {
-	FirstLine string
+type Request struct {
+	Method string
+	Url *url.URL
 	Protocol string
 	Headers map[string]string
 	Body []byte
 }
 
-func NewResponse() *Response {
-	return &Response{
+func NewRequest() *Request {
+	return &Request{
 		Headers: make(map[string]string),
 	}
 }
 
-func (r *Response) Parse(reader io.Reader) error {
+func (r *Request) Parse(reader io.Reader) error {
 	bReader := bufio.NewReader(reader)
 	started := false
 	firstLineParsed := false
@@ -43,7 +45,9 @@ func (r *Response) Parse(reader io.Reader) error {
 		started = true
 
 		if !firstLineParsed {
-			r.FirstLine = string(line)
+			if err := r.parseFirstLine(line); err != nil {
+				return err
+			}
 			firstLineParsed = true
 			continue
 		}
@@ -56,9 +60,25 @@ func (r *Response) Parse(reader io.Reader) error {
 	return r.getBody(bReader)
 }
 
+func (r *Request) parseFirstLine(buf []byte) error {
+	fields := bytes.Fields(buf)
+	if len(fields) != 3 {
+		return fmt.Errorf("can't parse first line: " + string(buf))
+	}
 
+	r.Method = string(fields[0])
+	u, err := url.Parse(string(fields[1]))
+	if err != nil {
+		return fmt.Errorf("can't parse url line: " + string(buf))
+	}
 
-func (r *Response) parseHeader(buf []byte) error {
+	r.Url = u
+	r.Protocol = string(fields[2])
+
+	return nil
+}
+
+func (r *Request) parseHeader(buf []byte) error {
 	idx := bytes.Index(buf, []byte(":"))
 	if idx < 0 {
 		return fmt.Errorf("can't parse header: " + string(buf))
@@ -68,7 +88,7 @@ func (r *Response) parseHeader(buf []byte) error {
 	return nil
 }
 
-func (r *Response) getBody(bRdr *bufio.Reader) error {
+func (r *Request) getBody(bRdr *bufio.Reader) error {
 	length, ok := r.Headers["Content-Length"]
 	if ok {
 		l, err := strconv.Atoi(length)
@@ -88,9 +108,9 @@ func (r *Response) getBody(bRdr *bufio.Reader) error {
 	return nil
 }
 
-func (r *Response) Bytes() []byte {
+func (r *Request) Bytes() []byte {
 	buff := bytes.Buffer{}
-	buff.WriteString(fmt.Sprintf("%s\r\n", r.FirstLine))
+	buff.WriteString(fmt.Sprintf("%s %s %s\r\n", r.Method, r.Url.String(), r.Protocol))
 	for h, val := range r.Headers {
 		buff.WriteString(fmt.Sprintf("%s: %s \r\n", h, val))
 	}
