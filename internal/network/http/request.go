@@ -23,6 +23,24 @@ func NewRequest() *Request {
 	}
 }
 
+func (r *Request) SetFirstLine(method, u, protocol string) error {
+	r.Method = method
+	r.Protocol = protocol
+
+	uu, err := url.Parse(u)
+	if err != nil {
+		return fmt.Errorf("can't parse url: " + u)
+	}
+
+	r.Url = uu
+	return nil
+}
+
+func (r *Request) SetHeader(header, value string) {
+	r.Headers[header] = value
+}
+
+
 func (r *Request) Parse(reader io.Reader) error {
 	bReader := bufio.NewReader(reader)
 	started := false
@@ -67,7 +85,7 @@ func (r *Request) parseFirstLine(buf []byte) error {
 	}
 
 	r.Method = string(fields[0])
-	u, err := url.Parse(string(fields[1]))
+	u, err := url.ParseRequestURI(string(fields[1]))
 	if err != nil {
 		return fmt.Errorf("can't parse url line: " + string(buf))
 	}

@@ -61,6 +61,8 @@ func (s *Server) Stop() {
 
 
 func (s *Server) handleConnection(conn net.Conn) {
+	defer conn.Close() //!!
+
 	req := http.NewRequest()
 	if err := req.Parse(conn); err != nil {
 		if err == io.EOF {
@@ -69,22 +71,24 @@ func (s *Server) handleConnection(conn net.Conn) {
 		}
 
 		log.Println("network-handleConnection: " + err.Error())
+		return
 	}
 
 	fmt.Println(string(req.Bytes()))
 
 
-	if len(req.Url.Host) > 0 {
+	if _, ok := req.Headers["Proxy-Connection"]; ok {
 		if req.Method == "CONNECT" {
 			c := connection.NewHttpsConn(conn)
 			c.Handle(req)
 		} else {
 			c := connection.NewHttpConn(conn)
 			c.Handle(req)
-			return
 		}
 	} else {
 		//resp, err = c.handleLocal(req)
+		log.Println("No handlers run")
+		log.Printf("Host: %s, Path: %s, Scheme: %s", req.Url.Host, req.Url.Path, req.Url.Scheme)
 	}
 }
 
