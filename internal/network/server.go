@@ -5,6 +5,7 @@ import (
 	config "github.com/paul-ss/http-proxy/configs"
 	"github.com/paul-ss/http-proxy/internal/network/cert"
 	"github.com/paul-ss/http-proxy/internal/network/connection"
+	"github.com/paul-ss/http-proxy/internal/network/router"
 	"log"
 	"net"
 	"net/http"
@@ -16,6 +17,7 @@ type Server struct {
 	quit     chan interface{}
 	wg 		 sync.WaitGroup
 	certs	 *cert.Certs
+	router   *router.Router
 }
 
 func NewServer() *Server {
@@ -28,6 +30,7 @@ func NewServer() *Server {
 		listener: ln,
 		quit:     make(chan interface{}),
 		certs:    cert.NewCerts(),
+		router:   router.NewRouter(),
 	}
 }
 
@@ -82,9 +85,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 			c.Handle(req)
 		}
 	} else {
-		//resp, err = c.handleLocal(req)
-		conn.Close()
-		log.Println("No handlers run")
+		connection.NewApi(conn, s.router).Handle(req)
 	}
 }
 
