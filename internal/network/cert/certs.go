@@ -40,26 +40,25 @@ func (c *Certs) addCert(host string, cert *tls.Certificate) {
 }
 
 func (c *Certs) openCert(host string) (*tls.Certificate, error) {
-	if _, err := os.Stat("cert.key"); os.IsNotExist(err) { // TODO
+	if _, err := os.Stat("certs/common/cert.key"); os.IsNotExist(err) { // TODO
 		log.Println("Cert: Cert key doesn't exist")
 		return nil, fmt.Errorf("cert: Cert key doesn't exist")
 	}
 
-	out, err := exec.Command("./scripts/gen-certs.sh", strings.Split(host, ":")[0]).Output()
+	out, err := exec.Command("./scripts/gen-cert-ext.sh", strings.Split(host, ":")[0]).Output()
 	if err != nil {
 		log.Println("Cert: Can't gen cert: " + err.Error())
 		return nil, err
 	}
 
-	fmt.Println(string(out))
-
-	key, err := ioutil.ReadFile("cert.key")
+	key, err := ioutil.ReadFile("certs/common/cert.key")
 	if err != nil {
 		return nil, err
 	}
 
 	cert, err := tls.X509KeyPair(out, key)
 	if err != nil {
+		log.Println("X509KeyPair: " + err.Error())
 		return nil, err
 	}
 

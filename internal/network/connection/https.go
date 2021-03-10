@@ -121,7 +121,7 @@ func (c *HttpsConn) Handle(r *http.Request) {
 
 func (c *HttpsConn) HandleClientToSrv() {
 	for {
-		if err := c.ClientConn.SetDeadline(time.Now().Add(5 *time.Second)); err != nil {
+		if err := c.ClientConn.SetDeadline(time.Now().Add(10 *time.Second)); err != nil {
 			log.Println("HandleClientToSrv: " + err.Error())
 			break
 		}
@@ -156,7 +156,7 @@ func (c *HttpsConn) HandleClientToSrv() {
 
 func (c *HttpsConn) HandleSrvToClient() {
 	for {
-		if err := c.ServerConn.SetDeadline(time.Now().Add(5 *time.Second)); err != nil {
+		if err := c.ServerConn.SetDeadline(time.Now().Add(10 *time.Second)); err != nil {
 			log.Println("HandleSrvToClient: " + err.Error())
 			break
 		}
