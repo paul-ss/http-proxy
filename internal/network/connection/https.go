@@ -1,14 +1,14 @@
 package connection
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"github.com/paul-ss/http-proxy/internal/network/cert"
-	"github.com/paul-ss/http-proxy/internal/network/http"
-	"io"
 	"log"
 	"net"
-	"strings"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -30,13 +30,7 @@ func NewHttpsConn(conn net.Conn, certs cert.ICerts) *HttpsConn {
 
 
 func (c *HttpsConn) OpenServerConn(r *http.Request) error {
-	host, ok := r.Headers["Host"]
-	if !ok {
-		log.Println("Can't find host header")
-		return fmt.Errorf("can't find host header")
-	}
-
-	conn, err := net.Dial("tcp", host)
+	conn, err := net.Dial("tcp", r.Host)
 	if err != nil {
 		log.Println("Can't connect to host: " + err.Error())
 		return err
@@ -46,30 +40,30 @@ func (c *HttpsConn) OpenServerConn(r *http.Request) error {
 	return nil
 }
 
-func (c *HttpsConn) Connect(clientReq *http.Request) error {
-	srvConn, err := tls.Dial(
-		"tcp",
-		strings.TrimLeft(clientReq.Url.String(), "/"),
-		&tls.Config{})
+func (c *HttpsConn) Connect(r *http.Request) error {
+	srvConn, err := tls.Dial("tcp", r.Host, &tls.Config{})
 	if err != nil {
 		log.Println("HttpsConn-Connect-Dial: " + err.Error())
 		return err
 	}
 	c.ServerConn = srvConn
 
-	clResp := http.NewResponse()
-	clResp.Status = 200
-	clResp.Protocol = clientReq.Protocol
-	clResp.Message = "Connection Established"
-	clResp.Headers["Proxy-agent"] = "paul-s-proxy"
+	clResp, err := http.ReadResponse(bufio.NewReader(bytes.NewBufferString(
+		fmt.Sprintf(
+			"HTTP/1.1 200 Connection Established\r\nProxy-agent: paul-s-proxy\r\n\r\n",
+			))), nil)
+	if err != nil {
+		log.Println("HttpsConn-Connect-ReadResp: " + err.Error())
+		return err
+	}
 
-	if _, err := c.ClientConn.Write(clResp.Bytes()); err != nil {
+	if err := clResp.Write(c.ClientConn); err != nil {
 		log.Println("HttpsConn-Connect: Error writing to server: " + err.Error())
 		return err
 	}
 
 
-	cer, err := c.certs.GetCert(clientReq.Url.Host)
+	cer, err := c.certs.GetCert(r.Host)
 	if err != nil {
 		return err
 	}
@@ -84,34 +78,12 @@ func (c *HttpsConn) Connect(clientReq *http.Request) error {
 
 func (c *HttpsConn) Handle(r *http.Request) {
 	defer c.ClientConn.Close()
-
-	//if err := c.OpenServerConn(r); err != nil {
-	//	log.Println("HttpsConn-Handle: " + err.Error())
-	//	return
-	//}
-	//defer c.ServerConn.Close()
-
 	if err := c.Connect(r); err != nil {
 		log.Println("HttpsConn-Handle-Connect: " + err.Error())
 		return
 	}
+	defer c.ServerConn.Close()
 
-	//c.ClientConn.SetDeadline(time.Now().Add(5 *time.Second))
-	//c.ServerConn.SetDeadline(time.Now().Add(5 *time.Second))
-
-	//f := func(dst io.WriteCloser, src io.ReadCloser) {
-	//	//defer dst.Close()
-	//	//defer src.Close()
-	//
-	//	var err error
-	//	for {
-	//		if _, err = io.Copy(dst, src); err != nil {
-	//			log.Println("f: " + err.Error())
-	//			break
-	//		}
-	//	}
-	//	wg.Done()
-	//}
 
 	c.wg.Add(2)
 	go c.HandleClientToSrv()
@@ -126,30 +98,19 @@ func (c *HttpsConn) HandleClientToSrv() {
 			break
 		}
 
-		n, err := io.Copy(c.ServerConn, c.ClientConn)
+		r := bufio.NewReader(c.ClientConn)
+		req, err := http.ReadRequest(r)
 		if err != nil {
-			log.Println("HandleClientToSrv: " + err.Error())
-			break
-		}
-		if n == 0 {
-			log.Println("HandleClientToSrv: 0" )
+			log.Println("HandleClientToSrv-Parse: " + err.Error())
 			break
 		}
 
+		// store req
 
-		//b := make([]byte, 200)
-		//n, err := c.ClientConn.Read(b)
-		//if err != nil {
-		//	log.Println("HandleClientToSrv-Read: " + err.Error())
-		//	break
-		//}
-		//
-		//_, err = fmt.Fprint(c.ServerConn, b[:n])
-		//if err != nil {
-		//	log.Println("HandleClientToSrv-Write: " + err.Error())
-		//	break
-		//}
-
+		if err := req.Write(c.ServerConn); err != nil {
+			log.Println("HandleClientToSrv-Write: " + err.Error())
+			break
+		}
 	}
 	c.wg.Done()
 }
@@ -161,13 +122,17 @@ func (c *HttpsConn) HandleSrvToClient() {
 			break
 		}
 
-		n, err := io.Copy(c.ClientConn, c.ServerConn)
+		r := bufio.NewReader(c.ServerConn)
+		resp, err := http.ReadResponse(r, nil)
 		if err != nil {
-			log.Println("HandleSrvToClient: " + err.Error())
+			log.Println("HandleSrvToClient-Parse: " + err.Error())
 			break
 		}
-		if n == 0 {
-			log.Println("HandleClientToSrv: 0" )
+
+		// store resp
+
+		if err := resp.Write(c.ClientConn); err != nil {
+			log.Println("HandleSrvToClient-Write: " + err.Error())
 			break
 		}
 	}

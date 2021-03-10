@@ -1,10 +1,10 @@
 package connection
 
 import (
-	"fmt"
-	"github.com/paul-ss/http-proxy/internal/network/http"
+	"bufio"
 	"log"
 	"net"
+	"net/http"
 )
 
 type HttpConn struct {
@@ -20,13 +20,7 @@ func NewHttpConn(conn net.Conn) *HttpConn {
 }
 
 func (c *HttpConn) OpenServerConn(r *http.Request) error {
-	host, ok := r.Headers["Host"]
-	if !ok {
-		log.Println("Can't find host header")
-		return fmt.Errorf("can't find host header")
-	}
-
-	conn, err := net.Dial("tcp", host+":80")
+	conn, err := net.Dial("tcp", r.Host + ":80")
 	if err != nil {
 		log.Println("Can't connect to host: " + err.Error())
 		return err
@@ -45,22 +39,23 @@ func (c *HttpConn) Handle(r *http.Request) {
 	}
 	defer c.ServerConn.Close()
 
-	r.Url.Scheme = ""
-	r.Url.Host = ""
-	delete(r.Headers, "Proxy-Connection")
+	//r.Url.Scheme = ""
+	//r.Url.Host = ""
+	//delete(r.Headers, "Proxy-Connection")
+	r.Header.Del("Proxy-Connection")
 
-	if _, err := c.ServerConn.Write(r.Bytes()); err != nil {
+	if err := r.Write(c.ServerConn); err != nil {
 		log.Println("HttpConn-Handle: Error writing to server: " + err.Error())
 		return
 	}
 
-	resp := http.NewResponse()
-	if err := resp.Parse(c.ServerConn); err != nil {
+	resp, err := http.ReadResponse(bufio.NewReader(c.ServerConn), r)
+	if  err != nil {
 		log.Println("HttpConn-Handle: Error parse resp: " + err.Error())
 		return
 	}
 
-	if _, err := c.ClientConn.Write(resp.Bytes()); err != nil {
+	if err := resp.Write(c.ClientConn); err != nil {
 		log.Println("HttpConn-Handle: Error writing to client: " + err.Error())
 		return
 	}

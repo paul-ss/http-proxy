@@ -1,14 +1,13 @@
 package network
 
 import (
-	"fmt"
+	"bufio"
 	config "github.com/paul-ss/http-proxy/configs"
 	"github.com/paul-ss/http-proxy/internal/network/cert"
 	"github.com/paul-ss/http-proxy/internal/network/connection"
-	"github.com/paul-ss/http-proxy/internal/network/http"
-	"io"
 	"log"
 	"net"
+	"net/http"
 	"sync"
 )
 
@@ -64,23 +63,17 @@ func (s *Server) Stop() {
 
 
 func (s *Server) handleConnection(conn net.Conn) {
-	defer conn.Close() //!!
-
-	req := http.NewRequest()
-	if err := req.Parse(conn); err != nil {
-		if err == io.EOF {
-			log.Println("EOF found")
-			return
-		}
-
+	req, err := http.ReadRequest(bufio.NewReader(conn))
+	if err != nil {
+		conn.Close()
 		log.Println("network-handleConnection: " + err.Error())
 		return
 	}
 
-	fmt.Println(string(req.Bytes()))
+	req.Header.Get("Proxy-Connection")
 
 
-	if _, ok := req.Headers["Proxy-Connection"]; ok {
+	if len(req.Header.Get("Proxy-Connection")) > 0 {
 		if req.Method == "CONNECT" {
 			c := connection.NewHttpsConn(conn, s.certs)
 			c.Handle(req)
@@ -90,8 +83,8 @@ func (s *Server) handleConnection(conn net.Conn) {
 		}
 	} else {
 		//resp, err = c.handleLocal(req)
+		conn.Close()
 		log.Println("No handlers run")
-		log.Printf("Host: %s, Path: %s, Scheme: %s", req.Url.Host, req.Url.Path, req.Url.Scheme)
 	}
 }
 
