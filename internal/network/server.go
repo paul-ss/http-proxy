@@ -3,6 +3,7 @@ package network
 import (
 	"fmt"
 	config "github.com/paul-ss/http-proxy/configs"
+	"github.com/paul-ss/http-proxy/internal/network/cert"
 	"github.com/paul-ss/http-proxy/internal/network/connection"
 	"github.com/paul-ss/http-proxy/internal/network/http"
 	"io"
@@ -15,6 +16,7 @@ type Server struct {
 	listener net.Listener
 	quit     chan interface{}
 	wg 		 sync.WaitGroup
+	certs	 *cert.Certs
 }
 
 func NewServer() *Server {
@@ -25,7 +27,8 @@ func NewServer() *Server {
 
 	return &Server{
 		listener: ln,
-		quit: make(chan interface{}),
+		quit:     make(chan interface{}),
+		certs:    cert.NewCerts(),
 	}
 }
 
@@ -79,7 +82,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	if _, ok := req.Headers["Proxy-Connection"]; ok {
 		if req.Method == "CONNECT" {
-			c := connection.NewHttpsConn(conn)
+			c := connection.NewHttpsConn(conn, s.certs)
 			c.Handle(req)
 		} else {
 			c := connection.NewHttpConn(conn)

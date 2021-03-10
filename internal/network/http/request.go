@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type Request struct {
@@ -85,13 +86,25 @@ func (r *Request) parseFirstLine(buf []byte) error {
 	}
 
 	r.Method = string(fields[0])
-	u, err := url.ParseRequestURI(string(fields[1]))
+	r.Protocol = string(fields[2])
+
+	urlField := string(fields[1])
+	addedPrefix := false
+	if !strings.HasPrefix(urlField, "http") {
+		urlField = "http://" + urlField
+		addedPrefix = true
+	}
+
+	u, err := url.ParseRequestURI(urlField)
 	if err != nil {
 		return fmt.Errorf("can't parse url line: " + string(buf))
 	}
 
+	if addedPrefix {
+		u.Scheme = ""
+		u.String()
+	}
 	r.Url = u
-	r.Protocol = string(fields[2])
 
 	return nil
 }
