@@ -7,7 +7,7 @@ type Config struct {
 }
 
 var C = Config{
-	ProxyAddress: "127.0.0.1:8000",
+	ProxyAddress: "0.0.0.0:8000",
 	CertsDir: "certs/",
 	MaxInMemoryCerts: 200,
 }
