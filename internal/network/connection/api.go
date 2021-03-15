@@ -1,11 +1,11 @@
 package connection
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/paul-ss/http-proxy/internal/network/router"
 	"net"
 	"net/http"
-	"os"
 )
 
 type Api struct {
@@ -27,10 +27,12 @@ func (a *Api) Handle(r *http.Request) {
 	fmt.Println("URI: " + r.RequestURI)
 	resp := a.router.GetResponse(r)
 
-	resp.Write(os.Stdout)
+	buff := bytes.NewBuffer([]byte{})
+	resp.Write(buff)
+	fmt.Println(buff.String())
 
-
-	if err := resp.Write(a.conn); err != nil {
+	if _, err := buff.WriteTo(a.conn); err != nil {
 		fmt.Println("Api-Handle: " + err.Error())
 	}
 }
+

@@ -3,7 +3,6 @@ WORKDIR /go/src/proxy
 COPY . .
 RUN go build -o build/main ./cmd/main.go
 
-
 FROM ubuntu:20.04
 ENV TZ=Europe/Moscow
 ENV DEBIAN_FRONTEND=noninteractive

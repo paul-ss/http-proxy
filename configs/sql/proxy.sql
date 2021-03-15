@@ -1,3 +1,6 @@
 CREATE TABLE requests (
-    r int
+    id serial PRIMARY KEY,
+    method text,
+    path text,
+    request text
 );

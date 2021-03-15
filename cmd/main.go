@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/paul-ss/http-proxy/internal/database"
 	"github.com/paul-ss/http-proxy/internal/network"
 	"log"
 	"os"
@@ -9,6 +10,8 @@ import (
 )
 
 func main()  {
+	defer database.Close()
+
 	srv := network.NewServer()
 	go srv.Run()
 
