@@ -4,24 +4,26 @@ import (
 	"github.com/paul-ss/http-proxy/internal/database"
 	"github.com/paul-ss/http-proxy/internal/network"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func main()  {
 	defer database.Close()
 
-	srv := network.NewServer()
-	go srv.Run()
+	proxy := network.NewProxyServer()
+	go proxy.Run()
 
-	quit := make(chan os.Signal)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	api := network.NewApiServer()
+	api.Run()
 
-	<-quit
-	log.Println("Shutting down server...")
 
-	srv.Stop()
 
-	log.Println("Server exiting")
+	//quit := make(chan os.Signal)
+	//signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	//
+	//<-quit
+	//log.Println("Shutting down server...")
+
+	proxy.Stop()
+
+	log.Println("ProxyServer exiting")
 }

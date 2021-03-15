@@ -36,7 +36,7 @@ func (d *Delivery) GetRequests(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, rr := range reqs {
-		_, err := w.Write([]byte(fmt.Sprintf("%5d %s %s", rr.Id, rr.Method, rr.Path)))
+		_, err := w.Write([]byte(fmt.Sprintf("%5d %s %s\n", rr.Id, rr.Method, rr.Path)))
 		if err != nil {
 			log.Println("Delivery-GetRequests-Write: " + err.Error())
 			w.WriteHeader(500)
@@ -44,6 +44,7 @@ func (d *Delivery) GetRequests(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
 }
 
@@ -67,6 +68,7 @@ func (d *Delivery) GetRequestById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
 }
 
@@ -83,6 +85,8 @@ func (d *Delivery) RepeatById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
+
 	_, err = w.Write(req)
 	if err != nil {
 		log.Println("Delivery-RepeatById-Write: " + err.Error())
@@ -90,6 +94,7 @@ func (d *Delivery) RepeatById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
 }
 
@@ -113,6 +118,7 @@ func (d *Delivery) ScanById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
 }
 

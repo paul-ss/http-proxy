@@ -76,6 +76,7 @@ func (uc *Usecase) RepeatById(id int32) ([]byte, error) {
 		log.Println("UC-RepeatById-ReadReq: " + err.Error())
 		return nil, err
 	}
+	hReq.RequestURI = ""
 
 	resp, err := uc.net.Send(hReq)
 	if err != nil {
@@ -104,6 +105,7 @@ func (uc *Usecase) ScanById(id int32) ([]byte, error) {
 		log.Println("UC-ScanById-ReadReq: " + err.Error())
 		return nil, err
 	}
+	hReq.RequestURI = ""
 
 	res := bytes.NewBuffer([]byte{})
 	strs := []string{"", "123", "21je"}
@@ -126,3 +128,39 @@ func (uc *Usecase) ScanById(id int32) ([]byte, error) {
 
 	return res.Bytes(), nil
 }
+
+
+
+
+
+type ProxyUsecase struct {
+	repo api.IRepository
+}
+
+func NewProxyUsecase() *ProxyUsecase {
+	return &ProxyUsecase{
+		repo: repository.NewDatabase(),
+	}
+}
+
+func (uc *ProxyUsecase) StoreRequest(r http.Request) error {
+	buff := bytes.NewBuffer([]byte{})
+	if err := r.Write(buff); err != nil {
+		log.Println("UC-StoreRequest-Write: " + err.Error())
+		return err
+	}
+
+	rReq := domain.StoreRequest{
+		Method: r.Method,
+		Path: r.URL.String(),
+		Req: buff.String(),
+	}
+
+	if _, err := uc.repo.StoreRequest(&rReq); err != nil {
+		log.Println("UC-StoreRequest-repo: " + err.Error())
+		return err
+	}
+
+	return nil
+}
+

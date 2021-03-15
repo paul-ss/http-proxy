@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"github.com/paul-ss/http-proxy/internal/api/usecase"
 	"github.com/paul-ss/http-proxy/internal/network/cert"
 	"log"
 	"net"
@@ -18,6 +19,7 @@ type HttpsConn struct {
 	ServerConn net.Conn
 	certs      cert.ICerts
 	wg 		   sync.WaitGroup
+	uc 		   *usecase.ProxyUsecase
 }
 
 
@@ -25,6 +27,7 @@ func NewHttpsConn(conn net.Conn, certs cert.ICerts) *HttpsConn {
 	return &HttpsConn{
 		ClientConn: conn,
 		certs: certs,
+		uc: usecase.NewProxyUsecase(),
 	}
 }
 
@@ -105,7 +108,10 @@ func (c *HttpsConn) HandleClientToSrv() {
 			break
 		}
 
-		// store req
+		if err := c.uc.StoreRequest(*req); err != nil {
+			log.Println("HandleClientToSrv-StoreRequest: " + err.Error())
+			break
+		}
 
 		if err := req.Write(c.ServerConn); err != nil {
 			log.Println("HandleClientToSrv-Write: " + err.Error())

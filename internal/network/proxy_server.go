@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-type Server struct {
+type ProxyServer struct {
 	listener net.Listener
 	quit     chan interface{}
 	wg 		 sync.WaitGroup
@@ -20,13 +20,13 @@ type Server struct {
 	router   *router.Router
 }
 
-func NewServer() *Server {
+func NewProxyServer() *ProxyServer {
 	ln, err := net.Listen("tcp", config.C.ProxyAddress)
 	if err != nil {
-		log.Fatal("network-NewServer-listen: " + err.Error())
+		log.Fatal("network-NewProxyServer-listen: " + err.Error())
 	}
 
-	return &Server{
+	return &ProxyServer{
 		listener: ln,
 		quit:     make(chan interface{}),
 		certs:    cert.NewCerts(),
@@ -34,8 +34,8 @@ func NewServer() *Server {
 	}
 }
 
-func (s *Server) Run() {
-	log.Println("Server running at " + config.C.ProxyAddress)
+func (s *ProxyServer) Run() {
+	log.Println("ProxyServer running at " + config.C.ProxyAddress)
 
 	for {
 		conn, err := s.listener.Accept()
@@ -56,16 +56,20 @@ func (s *Server) Run() {
 	}
 }
 
-func (s *Server) Stop() {
+func (s *ProxyServer) Stop() {
+	log.Println("Shutting down ProxyServer...")
+
 	close(s.quit)
 	s.listener.Close()
 	s.wg.Wait()
+
+	log.Printf("ProxyServer stopped")
 }
 
 
 
 
-func (s *Server) handleConnection(conn net.Conn) {
+func (s *ProxyServer) handleConnection(conn net.Conn) {
 	req, err := http.ReadRequest(bufio.NewReader(conn))
 	if err != nil {
 		conn.Close()

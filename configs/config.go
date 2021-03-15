@@ -3,6 +3,7 @@ package config
 
 type Config struct {
 	ProxyAddress string
+	ApiAddress string
 	CertsDir string
 	MaxInMemoryCerts int
 	Db DbConf
@@ -18,6 +19,7 @@ type DbConf struct {
 
 var C = Config{
 	ProxyAddress: "0.0.0.0:8000",
+	ApiAddress: "0.0.0.0:8080",
 	CertsDir: "certs/",
 	MaxInMemoryCerts: 200,
 	Db: DbConf{
