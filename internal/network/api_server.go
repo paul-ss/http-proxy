@@ -35,7 +35,7 @@ func NewApiServer() *ApiServer {
 
 func (s *ApiServer) Run() {
 	go func() {
-		if err := s.srv.ListenAndServe(); err != nil {
+		if err := s.srv.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatalf("ApiServer ListenAndServe: %v", err)
 		}
 	}()

@@ -20,6 +20,7 @@ type HttpsConn struct {
 	certs      cert.ICerts
 	wg 		   sync.WaitGroup
 	uc 		   *usecase.ProxyUsecase
+	host       string
 }
 
 
@@ -81,6 +82,7 @@ func (c *HttpsConn) Connect(r *http.Request) error {
 
 func (c *HttpsConn) Handle(r *http.Request) {
 	defer c.ClientConn.Close()
+	c.host = r.Host
 	if err := c.Connect(r); err != nil {
 		log.Println("HttpsConn-Handle-Connect: " + err.Error())
 		return
@@ -107,6 +109,7 @@ func (c *HttpsConn) HandleClientToSrv() {
 			log.Println("HandleClientToSrv-Parse: " + err.Error())
 			break
 		}
+		req.Host = c.host
 
 		if err := c.uc.StoreRequest(*req); err != nil {
 			log.Println("HandleClientToSrv-StoreRequest: " + err.Error())

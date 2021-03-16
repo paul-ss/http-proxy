@@ -2,6 +2,7 @@ package connection
 
 import (
 	"bufio"
+	"github.com/paul-ss/http-proxy/internal/api/usecase"
 	"log"
 	"net"
 	"net/http"
@@ -10,12 +11,14 @@ import (
 type HttpConn struct {
 	ClientConn net.Conn
 	ServerConn net.Conn
+	uc 	       *usecase.ProxyUsecase
 }
 
 
 func NewHttpConn(conn net.Conn) *HttpConn {
 	return &HttpConn{
 		ClientConn: conn,
+		uc: usecase.NewProxyUsecase(),
 	}
 }
 
@@ -43,6 +46,11 @@ func (c *HttpConn) Handle(r *http.Request) {
 	//r.Url.Host = ""
 	//delete(r.Headers, "Proxy-Connection")
 	r.Header.Del("Proxy-Connection")
+
+	if err := c.uc.StoreRequest(*r); err != nil {
+		log.Println("HandleConn-StoreRequest: " + err.Error())
+		return
+	}
 
 	if err := r.Write(c.ServerConn); err != nil {
 		log.Println("HttpConn-Handle: Error writing to server: " + err.Error())

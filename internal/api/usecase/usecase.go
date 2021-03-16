@@ -10,6 +10,8 @@ import (
 	"github.com/paul-ss/http-proxy/internal/domain"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 )
 
 type Usecase struct {
@@ -33,6 +35,7 @@ func (uc *Usecase) StoreRequest(r http.Request) error {
 
 	rReq := domain.StoreRequest{
 		Method: r.Method,
+		Host: strings.Split(r.Host, ":")[0],
 		Path: r.URL.String(),
 		Req: buff.String(),
 	}
@@ -71,12 +74,11 @@ func (uc *Usecase) RepeatById(id int32) ([]byte, error) {
 		return nil, err
 	}
 
-	hReq, err := http.ReadRequest(bufio.NewReader(bytes.NewBufferString(req.Req)))
+	hReq, err := readRequest(req)
 	if err != nil {
 		log.Println("UC-RepeatById-ReadReq: " + err.Error())
 		return nil, err
 	}
-	hReq.RequestURI = ""
 
 	resp, err := uc.net.Send(hReq)
 	if err != nil {
@@ -100,30 +102,38 @@ func (uc *Usecase) ScanById(id int32) ([]byte, error) {
 		return nil, err
 	}
 
-	hReq, err := http.ReadRequest(bufio.NewReader(bytes.NewBufferString(req.Req)))
+	hReq, err := readRequest(req)
 	if err != nil {
 		log.Println("UC-ScanById-ReadReq: " + err.Error())
 		return nil, err
 	}
-	hReq.RequestURI = ""
 
 	res := bytes.NewBuffer([]byte{})
-	strs := []string{"", "123", "21je"}
-	for _, s := range strs {
+	strs, err := mapFile()
+	if err != nil {
+		log.Println("UC-ScanById-map: " + err.Error())
+		return nil, err
+	}
+	log.Println("Scan started")
+
+	for i, s := range strs {
+		if i % 50 == 0 {
+			log.Printf("%d routes done\n", i)
+		}
 		cloneReq := hReq.Clone(context.Background())
 		cloneReq.URL.Path = s
 
 		resp, err := uc.net.Send(cloneReq)
 		if err != nil {
 			log.Println("UC-ScanById-Send: " + err.Error())
-			return nil, err
+			continue
 		}
 
 		if resp.StatusCode == 404 {
 			continue
 		}
 
-		res.WriteString(fmt.Sprintf("/%s - %d", s, resp.StatusCode))
+		res.WriteString(fmt.Sprintf("%d - /%s\n", resp.StatusCode, s))
 	}
 
 	return res.Bytes(), nil
@@ -152,6 +162,7 @@ func (uc *ProxyUsecase) StoreRequest(r http.Request) error {
 
 	rReq := domain.StoreRequest{
 		Method: r.Method,
+		Host: strings.Split(r.Host, ":")[0],
 		Path: r.URL.String(),
 		Req: buff.String(),
 	}
@@ -164,3 +175,32 @@ func (uc *ProxyUsecase) StoreRequest(r http.Request) error {
 	return nil
 }
 
+
+func readRequest(r *domain.Request) (*http.Request, error) {
+	hReq, err := http.ReadRequest(bufio.NewReader(bytes.NewBufferString(r.Req)))
+	if err != nil {
+		log.Println("UC-ScanById-ReadReq: " + err.Error())
+		return nil, err
+	}
+	hReq.RequestURI = ""
+	hReq.URL.Scheme = "http"
+	hReq.URL.Host = r.Host
+
+	return hReq, nil
+}
+
+func mapFile() ([]string, error) {
+	file, err := os.Open("configs/dicc.txt")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var res []string
+	s := bufio.NewScanner(file)
+	for s.Scan() {
+		res = append(res, s.Text())
+	}
+
+	return res, nil
+}

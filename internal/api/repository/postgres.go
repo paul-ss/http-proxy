@@ -24,9 +24,9 @@ func NewDatabase() *Database {
 func (d *Database) StoreRequest(req *domain.StoreRequest) (*domain.Request, error) {
 	var id int32
 	err := d.conn.QueryRow(context.Background(),
-		"INSERT INTO requests (method, path, request) " +
-		"VALUES ($1, $2, $3) " +
-		"RETURNING id ", req.Method, req.Path, req.Req).Scan(&id)
+		"INSERT INTO requests (method, host, path, request) " +
+		"VALUES ($1, $2, $3, $4) " +
+		"RETURNING id ", req.Method, req.Host, req.Path, req.Req).Scan(&id)
 
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func (d *Database) StoreRequest(req *domain.StoreRequest) (*domain.Request, erro
 
 func (d *Database) GetShortRequests() ([]domain.RequestShort, error) {
 	rows, err := d.conn.Query(context.Background(),
-		"SELECT id, method, path "+
+		"SELECT id, method, host, path "+
 			"FROM requests "+
 			"ORDER BY id ")
 
@@ -54,7 +54,7 @@ func (d *Database) GetShortRequests() ([]domain.RequestShort, error) {
 	var reqs []domain.RequestShort
 	for rows.Next() {
 		req := domain.RequestShort{}
-		if err := rows.Scan(&req.Id, &req.Method, &req.Path); err != nil {
+		if err := rows.Scan(&req.Id, &req.Method, &req.Host, &req.Path); err != nil {
 			return nil, err
 		}
 
@@ -71,10 +71,10 @@ func (d *Database) GetShortRequests() ([]domain.RequestShort, error) {
 func (d *Database) GetRequestById(id int32) (*domain.Request, error) {
 	req := domain.Request{}
 	err := d.conn.QueryRow(context.Background(),
-		"SELECT id, method, path, request "+
+		"SELECT id, method, host, path, request "+
 			"FROM requests " +
 			"WHERE id = $1 ", id).
-		Scan(&req.Id, &req.Method, &req.Path, &req.Req)
+		Scan(&req.Id, &req.Method, &req.Host, &req.Path, &req.Req)
 
 	if err != nil {
 		return nil, err
