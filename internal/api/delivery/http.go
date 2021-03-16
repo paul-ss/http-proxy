@@ -36,7 +36,7 @@ func (d *Delivery) GetRequests(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, rr := range reqs {
-		_, err := w.Write([]byte(fmt.Sprintf("%5d %s %s\n", rr.Id, rr.Method, rr.Path)))
+		_, err := w.Write([]byte(fmt.Sprintf("%5d %s %s%s\n", rr.Id, rr.Method, rr.Host, rr.Path)))
 		if err != nil {
 			log.Println("Delivery-GetRequests-Write: " + err.Error())
 			w.WriteHeader(500)

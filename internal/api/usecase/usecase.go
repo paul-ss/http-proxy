@@ -85,6 +85,7 @@ func (uc *Usecase) RepeatById(id int32) ([]byte, error) {
 		log.Println("UC-RepeatById-Send: " + err.Error())
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	respBuf := bytes.NewBuffer([]byte{})
 	if err := resp.Write(respBuf); err != nil {
@@ -129,11 +130,13 @@ func (uc *Usecase) ScanById(id int32) ([]byte, error) {
 			continue
 		}
 
+
 		if resp.StatusCode == 404 {
 			continue
 		}
 
-		res.WriteString(fmt.Sprintf("%d - /%s\n", resp.StatusCode, s))
+		res.WriteString(fmt.Sprintf("%d - %s%s\n", resp.StatusCode, cloneReq.Host, s))
+		resp.Body.Close()
 	}
 
 	return res.Bytes(), nil
